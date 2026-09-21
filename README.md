@@ -33,6 +33,7 @@ La aplicación aplica una interfaz en modo oscuro de alto contraste:
 ```
 frontend_migrado/
 ├── CMakeLists.txt                 # Configuración de compilación con Qt6
+├── CHANGELOG.md                  # Registro de cambios y directivas para IA / desarrolladores
 ├── README.md                      # Documentación del proyecto
 └── src/
     ├── main.cpp                  # Inicialización y arranque de QApplication
