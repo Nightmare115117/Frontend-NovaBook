@@ -82,16 +82,19 @@ No mezclar ni exponer vistas entre roles no autorizados:
 
 ## [Unreleased]
 
-*Espacio reservado para los próximos cambios en desarrollo. Toda IA que edite código debe listar aquí sus modificaciones.*
+### ➕ Añadido (Added)
+- **Web SPA (`web/index.html`, `web/styles.css`, `web/app.js`)**: Aplicación web SPA completa responsiva y corporativa construida con la paleta oficial (`#0D0D0D`, `#161616`, `#C8973A`), con vistas dedicadas para Gerente (CRUD Usuarios), Bodega (Alta libros/revistas y traslados Bodega $\to$ Tienda), Jefe (Historial de devoluciones, evaluación/aprobación y bitácora) y Vendedor (POS interactivo multilínea, consulta en vivo, traslados y solicitudes con descarga directa de PDF).
+- **Script de Pruebas E2E (`api_migrado/test_e2e.sh`)**: Suite automatizada con curl que verifica todos los endpoints REST y transacciones atómicas en MySQL para los 4 roles.
 
-### ➕ Añadido
-- *(Pendiente de próximos cambios)*
+### 🔄 Modificado (Changed)
+- **`LoginWindow.cpp`**: Integración de botones interactivos de acceso rápido para los 4 roles (Gerente `1001`, Jefe `350976899`, Bodega `628777130`, Vendedor `628777129`) con auto-llenado y envío de login automático para pruebas rápidas. Adición del distintivo dorado del rol Gerente.
+- **`MainWindow.cpp`**: Sincronización y confirmación de soporte para el rol Gerente (`id_roles = 4`), habilitando acceso directo al panel administrativo y al módulo completo de CRUD de usuarios (`JefeUsuariosView`).
+- **`api_migrado/src/productos/repo/producto.rs`**: Adaptación a `sqlx 0.9` envolviendo consultas SQL dinámicas con `sqlx::AssertSqlSafe(sql.as_str())`. Eliminación de imports en desuso.
+- **`api_migrado/src/productos/service/producto.rs`**: Conexión a métodos transaccionales del repositorio y limpieza de advertencias de compilación.
 
-### 🔄 Modificado
-- *(Pendiente de próximos cambios)*
-
-### 🐛 Corregido
-- *(Pendiente de próximos cambios)*
+### 🐛 Corregido (Fixed)
+- **Transacciones de Venta en Almacén (`repo/producto.rs`)**: Corrección de validación de `tipo_producto` ("libro" vs "revista") para el descuento atómico de stock en Piso de Ventas (`id_ubicacion = 1`) y serialización correcta en `detalle_ventas`.
+- **Restricciones de Llaves Foráneas (`test_e2e.sh`)**: Corrección de valores de `id_genero` e `id_mueble` a claves existentes (`11`) en la base de datos `Libreria`.
 
 ---
 

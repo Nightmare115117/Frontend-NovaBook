@@ -4,6 +4,7 @@
 #include "ApiClient.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QGridLayout>
 #include <QFrame>
 #include <QIcon>
 #include <QGuiApplication>
@@ -13,7 +14,7 @@ LoginWindow::LoginWindow(QWidget *parent)
     : QWidget(parent)
 {
     setWindowTitle("NovaBook — Iniciar Sesión");
-    setFixedSize(480, 620);
+    setFixedSize(480, 700);
     setAttribute(Qt::WA_QuitOnClose, true);
 
     // Center on screen
@@ -115,13 +116,57 @@ LoginWindow::LoginWindow(QWidget *parent)
 
     contentLayout->addWidget(card);
 
+    // Quick Test Buttons
+    auto *lblQuick = new QLabel("ACCESOS RÁPIDOS DE PRUEBA", contentWidget);
+    lblQuick->setStyleSheet(QString("font-size: 10px; font-weight: bold; color: %1; letter-spacing: 0.5px; margin-top: 4px;").arg(Theme::TextMuted));
+    lblQuick->setAlignment(Qt::AlignCenter);
+    contentLayout->addWidget(lblQuick);
+
+    auto *quickLayout = new QGridLayout();
+    quickLayout->setSpacing(8);
+
+    auto addQuickBtn = [&](const QString &label, qint64 id, const QString &pass, int row, int col, const QString &color) {
+        auto *btn = new QPushButton(label, contentWidget);
+        btn->setStyleSheet(QString(R"(
+            QPushButton {
+                background-color: %1;
+                color: %2;
+                border: 1px solid %3;
+                border-radius: 6px;
+                padding: 6px 4px;
+                font-size: 11px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                border-color: %4;
+                color: %4;
+                background-color: #1A1A1A;
+            }
+        )").arg(Theme::BgInput).arg(Theme::TextSidebar).arg(Theme::Border).arg(color));
+        btn->setCursor(Qt::PointingHandCursor);
+        connect(btn, &QPushButton::clicked, this, [this, id, pass]() {
+            m_txtUsuario->setText(QString::number(id));
+            m_txtPassword->setText(pass);
+            onLoginClicked();
+        });
+        quickLayout->addWidget(btn, row, col);
+    };
+
+    addQuickBtn("👑 Gerente (1001)", 1001, "admin123", 0, 0, Theme::Role1);
+    addQuickBtn("👔 Jefe (350976899)", 350976899, "2501", 0, 1, Theme::Role1);
+    addQuickBtn("📦 Bodega (628777130)", 628777130, "7777", 1, 0, Theme::Role2);
+    addQuickBtn("🏷️ Vendedor (628777129)", 628777129, "8888", 1, 1, Theme::Role3);
+
+    contentLayout->addLayout(quickLayout);
+
     // Role Indicator Pills
     auto *rolesLayout = new QHBoxLayout();
     rolesLayout->setAlignment(Qt::AlignCenter);
-    rolesLayout->setSpacing(14);
+    rolesLayout->setSpacing(12);
 
     struct RoleInfo { QString color; QString name; };
     QList<RoleInfo> roles = {
+        {Theme::Role1, "Gerente"},
         {Theme::Role1, "Jefe"},
         {Theme::Role2, "Bodega"},
         {Theme::Role3, "Vendedor"}
@@ -129,9 +174,9 @@ LoginWindow::LoginWindow(QWidget *parent)
 
     for (const auto &r : roles) {
         auto *dot = new QLabel("●", contentWidget);
-        dot->setStyleSheet(QString("color: %1; font-size: 12px;").arg(r.color));
+        dot->setStyleSheet(QString("color: %1; font-size: 11px;").arg(r.color));
         auto *text = new QLabel(r.name, contentWidget);
-        text->setStyleSheet(QString("color: %1; font-size: 11px;").arg(Theme::TextMuted));
+        text->setStyleSheet(QString("color: %1; font-size: 10px;").arg(Theme::TextMuted));
 
         rolesLayout->addWidget(dot);
         rolesLayout->addWidget(text);
