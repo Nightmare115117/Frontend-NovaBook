@@ -42,8 +42,9 @@ private:
 
     // Campos dinámicos de Revista
     QWidget *m_panelRevista;
+    QComboBox *m_comboAutorEditorial;
     QSpinBox *m_spnEdicion;
-    QLineEdit *m_txtPeriodicidad;
+    QComboBox *m_comboPeriodicidad;
 
     QComboBox *m_comboMueble;
     QComboBox *m_comboProveedor;

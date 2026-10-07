@@ -45,17 +45,18 @@ BodegaInventarioView::BodegaInventarioView(QWidget *parent)
 
     // Table
     m_table = new QTableWidget(this);
-    m_table->setColumnCount(9);
-    m_table->setHorizontalHeaderLabels({"EAN", "SKU", "Título", "Tipo", "Géneros", "Stock Bodega", "Stock Tienda", "Total", "Precio"});
+    m_table->setColumnCount(10);
+    m_table->setHorizontalHeaderLabels({"EAN", "SKU", "Título", "Tipo", "Autor / Editorial", "Géneros", "Stock Bodega", "Stock Tienda", "Total", "Precio"});
     m_table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     m_table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
     m_table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
     m_table->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
-    m_table->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
+    m_table->horizontalHeader()->setSectionResizeMode(4, QHeaderView::Stretch);
     m_table->horizontalHeader()->setSectionResizeMode(5, QHeaderView::ResizeToContents);
     m_table->horizontalHeader()->setSectionResizeMode(6, QHeaderView::ResizeToContents);
     m_table->horizontalHeader()->setSectionResizeMode(7, QHeaderView::ResizeToContents);
     m_table->horizontalHeader()->setSectionResizeMode(8, QHeaderView::ResizeToContents);
+    m_table->horizontalHeader()->setSectionResizeMode(9, QHeaderView::ResizeToContents);
     m_table->verticalHeader()->setVisible(false);
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -90,18 +91,19 @@ void BodegaInventarioView::cargarInventario() {
             m_table->setItem(i, 1, new QTableWidgetItem(ex.sku > 0 ? QString::number(ex.sku) : "-"));
             m_table->setItem(i, 2, new QTableWidgetItem(ex.titulo));
             m_table->setItem(i, 3, new QTableWidgetItem(ex.tipo_producto));
-            m_table->setItem(i, 4, new QTableWidgetItem(ex.generos.isEmpty() ? "General" : ex.generos));
+            m_table->setItem(i, 4, new QTableWidgetItem(ex.autor_o_editorial.isEmpty() ? "-" : ex.autor_o_editorial));
+            m_table->setItem(i, 5, new QTableWidgetItem(ex.generos.isEmpty() ? "General" : ex.generos));
 
             auto *itemBodega = new QTableWidgetItem(QString::number(ex.stock_bodega));
             itemBodega->setForeground(QColor(Theme::Role2));
-            m_table->setItem(i, 5, itemBodega);
+            m_table->setItem(i, 6, itemBodega);
 
             auto *itemTienda = new QTableWidgetItem(QString::number(ex.stock_tienda));
             itemTienda->setForeground(QColor(Theme::Role3));
-            m_table->setItem(i, 6, itemTienda);
+            m_table->setItem(i, 7, itemTienda);
 
-            m_table->setItem(i, 7, new QTableWidgetItem(QString::number(ex.stock_total)));
-            m_table->setItem(i, 8, new QTableWidgetItem(QString("$ %1").arg(QString::number(ex.precio, 'f', 2))));
+            m_table->setItem(i, 8, new QTableWidgetItem(QString::number(ex.stock_total)));
+            m_table->setItem(i, 9, new QTableWidgetItem(QString("$ %1").arg(QString::number(ex.precio, 'f', 2))));
         }
     });
 }

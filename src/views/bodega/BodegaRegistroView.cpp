@@ -90,14 +90,21 @@ BodegaRegistroView::BodegaRegistroView(QWidget *parent)
     revistaLayout->setContentsMargins(0, 0, 0, 0);
     revistaLayout->setSpacing(12);
 
+    m_comboAutorEditorial = new QComboBox(m_panelRevista);
+    m_comboAutorEditorial->setPlaceholderText("Selecciona un autor o editorial");
+    revistaLayout->addRow("Autor / Editorial:", m_comboAutorEditorial);
+
     m_spnEdicion = new QSpinBox(m_panelRevista);
     m_spnEdicion->setRange(1, 9999);
     m_spnEdicion->setValue(1);
     revistaLayout->addRow("Número de Edición:", m_spnEdicion);
 
-    m_txtPeriodicidad = new QLineEdit(m_panelRevista);
-    m_txtPeriodicidad->setPlaceholderText("Mensual, Semanal, Quincenal...");
-    revistaLayout->addRow("Periodicidad:", m_txtPeriodicidad);
+    m_comboPeriodicidad = new QComboBox(m_panelRevista);
+    m_comboPeriodicidad->addItem("Selecciona una periodicidad", "");
+    m_comboPeriodicidad->addItem("Mensual", "Mensual");
+    m_comboPeriodicidad->addItem("Semanal", "Semanal");
+    m_comboPeriodicidad->addItem("Quincenal", "Quincenal");
+    revistaLayout->addRow("Periodicidad:", m_comboPeriodicidad);
 
     form->addRow(m_panelRevista);
     m_panelRevista->hide();
@@ -177,6 +184,7 @@ void BodegaRegistroView::cargarCatalogos() {
     ApiClient::instance()->listarAutores([this](bool ok, const QJsonValue &data, const QString &) {
         if (!ok || !data.isArray()) return;
         m_comboAutor->clear();
+        m_comboAutorEditorial->clear();
         m_autores.clear();
         QJsonArray arr = data.toArray();
         for (int i = 0; i < arr.size(); ++i) {
@@ -185,6 +193,7 @@ void BodegaRegistroView::cargarCatalogos() {
             QString label = QString("%1 %2").arg(a.nombre, a.apellidos);
             if (!a.nacionalidad.isEmpty()) label += QString(" (%1)").arg(a.nacionalidad);
             m_comboAutor->addItem(label, a.id_autor);
+            m_comboAutorEditorial->addItem(label, a.id_autor);
         }
     });
 
@@ -228,7 +237,8 @@ void BodegaRegistroView::limpiarCampos() {
     m_txtEan->clear();
     m_txtSku->clear();
     m_txtNombre->clear();
-    m_txtPeriodicidad->clear();
+    m_comboAutorEditorial->setCurrentIndex(-1);
+    m_comboPeriodicidad->setCurrentIndex(0);
     m_spnPrecio->setValue(199.0);
     m_spnCantidad->setValue(10);
     m_spnEdicion->setValue(1);
@@ -301,9 +311,13 @@ void BodegaRegistroView::onRegistrar() {
         });
     } else {
         obj["nombre_revista"] = nombre;
+        if (m_comboAutorEditorial->currentIndex() >= 0) {
+            obj["autor_o_editorial"] = m_comboAutorEditorial->currentText();
+        }
         obj["numero_edicion"] = m_spnEdicion->value();
-        if (!m_txtPeriodicidad->text().trimmed().isEmpty()) {
-            obj["periodicidad"] = m_txtPeriodicidad->text().trimmed();
+        QString periodicidad = m_comboPeriodicidad->currentData().toString();
+        if (!periodicidad.isEmpty()) {
+            obj["periodicidad"] = periodicidad;
         }
 
         ApiClient::instance()->registrarRevistaBodega(obj, [this](bool ok, const QJsonValue &, const QString &msg) {
