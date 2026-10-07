@@ -12,6 +12,7 @@
 
 struct ReturnItemDraft {
     qint64 ean = 0;
+    QString tipo = "Libro";
     int cantidad = 1;
     QString motivo;
 };
@@ -23,6 +24,7 @@ public:
     explicit VendedorDevolucionView(QWidget *parent = nullptr);
 
 private slots:
+    void onEanChanged(const QString &text);
     void onAgregarArticulo();
     void onQuitarArticulo(int index);
     void onEnviarDevolucion();
@@ -30,9 +32,9 @@ private slots:
 
 private:
     QComboBox *m_comboProveedor;
-    QComboBox *m_comboTipo;
 
     QLineEdit *m_txtEan;
+    QLabel *m_lblEanStatus;
     QSpinBox *m_spnCantidad;
     QLineEdit *m_txtMotivo;
     QPushButton *m_btnAgregar;

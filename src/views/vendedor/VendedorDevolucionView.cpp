@@ -2,6 +2,7 @@
 #include "Theme.h"
 #include "ApiClient.h"
 #include "Toast.h"
+#include "EanClassifier.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
@@ -42,19 +43,16 @@ VendedorDevolucionView::VendedorDevolucionView(QWidget *parent)
     headerLayout->addWidget(lblProv);
 
     m_comboProveedor = new QComboBox(headerCard);
-    m_comboProveedor->addItem("Planeta México (1)", 1);
-    m_comboProveedor->addItem("Planeta México Infantil (2)", 2);
-    m_comboProveedor->addItem("Penguin Random House (3)", 3);
+    ApiClient::instance()->listarProveedores([this](bool ok, const QJsonValue &data, const QString &) {
+        if (!ok || !data.isArray()) return;
+        m_comboProveedor->clear();
+        QJsonArray arr = data.toArray();
+        for (int i = 0; i < arr.size(); ++i) {
+            ProveedorDto p = ProveedorDto::fromJson(arr.at(i).toObject());
+            m_comboProveedor->addItem(QString("%1 (RFC: %2)").arg(p.nombre_proveedor, p.rfc), p.id_proveedor);
+        }
+    });
     headerLayout->addWidget(m_comboProveedor, 1);
-
-    auto *lblTipo = new QLabel("Tipo de Material:", headerCard);
-    lblTipo->setStyleSheet(QString("font-weight: bold; color: %1;").arg(Theme::TextMuted));
-    headerLayout->addWidget(lblTipo);
-
-    m_comboTipo = new QComboBox(headerCard);
-    m_comboTipo->addItem("Libro", "Libro");
-    m_comboTipo->addItem("Revista", "Revista");
-    headerLayout->addWidget(m_comboTipo, 1);
 
     layout->addWidget(headerCard);
 
@@ -69,7 +67,10 @@ VendedorDevolucionView::VendedorDevolucionView(QWidget *parent)
         }
     )").arg(Theme::BgCard).arg(Theme::Border));
 
-    auto *addItemLayout = new QHBoxLayout(addItemCard);
+    auto *cardLayout = new QVBoxLayout(addItemCard);
+    cardLayout->setSpacing(8);
+
+    auto *addItemLayout = new QHBoxLayout();
     addItemLayout->setSpacing(10);
 
     m_txtEan = new QLineEdit(addItemCard);
@@ -92,16 +93,23 @@ VendedorDevolucionView::VendedorDevolucionView(QWidget *parent)
     m_btnAgregar->setStyleSheet(Theme::buttonStyle(Theme::Role3, Theme::BgDark, "#A5D67D"));
     addItemLayout->addWidget(m_btnAgregar);
 
+    cardLayout->addLayout(addItemLayout);
+
+    m_lblEanStatus = new QLabel("Ingresa el código EAN-13 para clasificar automáticamente como Libro o Revista", addItemCard);
+    m_lblEanStatus->setStyleSheet(QString("font-size: 12px; color: %1;").arg(Theme::TextMuted));
+    cardLayout->addWidget(m_lblEanStatus);
+
     layout->addWidget(addItemCard);
 
     // Items table
     m_tableItems = new QTableWidget(this);
-    m_tableItems->setColumnCount(4);
-    m_tableItems->setHorizontalHeaderLabels({"EAN", "Cantidad", "Motivo de Devolución", "Acción"});
+    m_tableItems->setColumnCount(5);
+    m_tableItems->setHorizontalHeaderLabels({"EAN", "Tipo", "Cantidad", "Motivo de Devolución", "Acción"});
     m_tableItems->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     m_tableItems->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
-    m_tableItems->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
-    m_tableItems->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
+    m_tableItems->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+    m_tableItems->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
+    m_tableItems->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
     m_tableItems->verticalHeader()->setVisible(false);
     m_tableItems->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_tableItems->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -135,20 +143,28 @@ VendedorDevolucionView::VendedorDevolucionView(QWidget *parent)
 
     layout->addWidget(m_resCard);
 
+    connect(m_txtEan, &QLineEdit::textChanged, this, &VendedorDevolucionView::onEanChanged);
+    connect(m_txtEan, &QLineEdit::returnPressed, this, &VendedorDevolucionView::onAgregarArticulo);
     connect(m_btnAgregar, &QPushButton::clicked, this, &VendedorDevolucionView::onAgregarArticulo);
     connect(m_btnEnviar, &QPushButton::clicked, this, &VendedorDevolucionView::onEnviarDevolucion);
     connect(m_btnDescargarPdf, &QPushButton::clicked, this, &VendedorDevolucionView::onDescargarPdf);
 }
 
+void VendedorDevolucionView::onEanChanged(const QString &text) {
+    EanClassifier::aplicarAControles(text, m_lblEanStatus);
+}
+
 void VendedorDevolucionView::onAgregarArticulo() {
     QString eanStr = m_txtEan->text().trimmed();
-    if (eanStr.isEmpty() || !eanStr.toLongLong()) {
-        Toast::showToast(this, "Ingresa un código EAN válido", Toast::Warning);
+    auto eanRes = EanClassifier::clasificar(eanStr);
+    if (!eanRes.esValido) {
+        Toast::showToast(this, eanRes.mensaje, Toast::Warning);
         return;
     }
 
     ReturnItemDraft item;
     item.ean = eanStr.toLongLong();
+    item.tipo = (eanRes.tipo == EanClassifier::Tipo::Libro ? "Libro" : "Revista");
     item.cantidad = m_spnCantidad->value();
     item.motivo = m_txtMotivo->text().trimmed();
 
@@ -157,15 +173,16 @@ void VendedorDevolucionView::onAgregarArticulo() {
     m_tableItems->insertRow(row);
 
     m_tableItems->setItem(row, 0, new QTableWidgetItem(QString::number(item.ean)));
-    m_tableItems->setItem(row, 1, new QTableWidgetItem(QString::number(item.cantidad)));
-    m_tableItems->setItem(row, 2, new QTableWidgetItem(item.motivo.isEmpty() ? "Defecto general" : item.motivo));
+    m_tableItems->setItem(row, 1, new QTableWidgetItem(item.tipo));
+    m_tableItems->setItem(row, 2, new QTableWidgetItem(QString::number(item.cantidad)));
+    m_tableItems->setItem(row, 3, new QTableWidgetItem(item.motivo.isEmpty() ? "Defecto general" : item.motivo));
 
     auto *btnQuitar = new QPushButton("✖ Quitar", this);
     btnQuitar->setStyleSheet(Theme::dangerButtonStyle());
     connect(btnQuitar, &QPushButton::clicked, this, [this, row]() {
         onQuitarArticulo(row);
     });
-    m_tableItems->setCellWidget(row, 3, btnQuitar);
+    m_tableItems->setCellWidget(row, 4, btnQuitar);
 
     m_txtEan->clear();
     m_txtMotivo->clear();
@@ -187,7 +204,7 @@ void VendedorDevolucionView::onEnviarDevolucion() {
     }
 
     int provId = m_comboProveedor->currentData().toInt();
-    QString tipo = m_comboTipo->currentData().toString();
+    QString tipo = m_items.first().tipo;
 
     QJsonArray itemsArr;
     for (const auto &it : m_items) {

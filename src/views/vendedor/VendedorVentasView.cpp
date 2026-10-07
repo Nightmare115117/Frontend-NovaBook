@@ -2,6 +2,7 @@
 #include "Theme.h"
 #include "ApiClient.h"
 #include "Toast.h"
+#include "EanClassifier.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -14,11 +15,35 @@ VendedorVentasView::VendedorVentasView(QWidget *parent)
 {
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(32, 28, 32, 28);
-    layout->setSpacing(20);
+    layout->setSpacing(18);
 
     auto *title = new QLabel("Punto de Venta — Baja por Venta", this);
     title->setStyleSheet(QString("font-size: 22px; font-weight: bold; color: %1;").arg(Theme::TextPrimary));
     layout->addWidget(title);
+
+    // Cliente Obligatorio Bar
+    auto *clienteCard = new QFrame(this);
+    clienteCard->setStyleSheet(QString(R"(
+        QFrame {
+            background-color: %1;
+            border: 1px solid %2;
+            border-radius: 8px;
+            padding: 12px;
+        }
+    )").arg(Theme::BgCard).arg(Theme::Border));
+
+    auto *clienteLayout = new QHBoxLayout(clienteCard);
+    clienteLayout->setSpacing(12);
+
+    auto *lblCliente = new QLabel("Nombre del Cliente (Obligatorio):", clienteCard);
+    lblCliente->setStyleSheet(QString("font-weight: bold; color: %1; font-size: 13px;").arg(Theme::Accent));
+    clienteLayout->addWidget(lblCliente);
+
+    m_txtCliente = new QLineEdit(clienteCard);
+    m_txtCliente->setPlaceholderText("Ingresa el nombre completo del cliente que adquiere la mercancía...");
+    clienteLayout->addWidget(m_txtCliente, 1);
+
+    layout->addWidget(clienteCard);
 
     // Scan / Add item bar
     auto *addCard = new QFrame(this);
@@ -31,17 +56,15 @@ VendedorVentasView::VendedorVentasView(QWidget *parent)
         }
     )").arg(Theme::BgCard).arg(Theme::Border));
 
-    auto *addLayout = new QHBoxLayout(addCard);
+    auto *cardLayout = new QVBoxLayout(addCard);
+    cardLayout->setSpacing(8);
+
+    auto *addLayout = new QHBoxLayout();
     addLayout->setSpacing(12);
 
     m_txtEan = new QLineEdit(addCard);
     m_txtEan->setPlaceholderText("Escanear o ingresar EAN (13 dígitos)...");
     addLayout->addWidget(m_txtEan, 2);
-
-    m_comboTipo = new QComboBox(addCard);
-    m_comboTipo->addItem("Libro", "libro");
-    m_comboTipo->addItem("Revista", "revista");
-    addLayout->addWidget(m_comboTipo);
 
     auto *lblCant = new QLabel("Cant:", addCard);
     lblCant->setStyleSheet(QString("font-weight: bold; color: %1;").arg(Theme::TextMuted));
@@ -56,6 +79,12 @@ VendedorVentasView::VendedorVentasView(QWidget *parent)
     m_btnAgregar = new QPushButton("＋ Añadir al Carrito", addCard);
     m_btnAgregar->setStyleSheet(Theme::buttonStyle(Theme::Role3, Theme::BgDark, "#A5D67D"));
     addLayout->addWidget(m_btnAgregar);
+
+    cardLayout->addLayout(addLayout);
+
+    m_lblEanStatus = new QLabel("Ingresa el código EAN-13 para clasificar automáticamente como Libro o Revista", addCard);
+    m_lblEanStatus->setStyleSheet(QString("font-size: 12px; color: %1;").arg(Theme::TextMuted));
+    cardLayout->addWidget(m_lblEanStatus);
 
     layout->addWidget(addCard);
 
@@ -108,22 +137,28 @@ VendedorVentasView::VendedorVentasView(QWidget *parent)
 
     layout->addWidget(bottomCard);
 
+    connect(m_txtEan, &QLineEdit::textChanged, this, &VendedorVentasView::onEanChanged);
     connect(m_btnAgregar, &QPushButton::clicked, this, &VendedorVentasView::onAgregarAlCarrito);
     connect(m_txtEan, &QLineEdit::returnPressed, this, &VendedorVentasView::onAgregarAlCarrito);
     connect(m_btnVaciar, &QPushButton::clicked, this, &VendedorVentasView::limpiarCarrito);
     connect(m_btnProcesar, &QPushButton::clicked, this, &VendedorVentasView::onProcesarVenta);
 }
 
+void VendedorVentasView::onEanChanged(const QString &text) {
+    EanClassifier::aplicarAControles(text, m_lblEanStatus);
+}
+
 void VendedorVentasView::onAgregarAlCarrito() {
     QString eanStr = m_txtEan->text().trimmed();
-    if (eanStr.isEmpty() || !eanStr.toLongLong()) {
-        Toast::showToast(this, "Ingresa un código EAN numérico", Toast::Warning);
+    auto eanRes = EanClassifier::clasificar(eanStr);
+    if (!eanRes.esValido) {
+        Toast::showToast(this, eanRes.mensaje, Toast::Warning);
         return;
     }
 
     qint64 ean = eanStr.toLongLong();
     int cant = m_spnCantidad->value();
-    QString tipo = m_comboTipo->currentData().toString();
+    QString tipo = (eanRes.tipo == EanClassifier::Tipo::Libro ? "libro" : "revista");
 
     // Consult existences to get title and price
     ApiClient::instance()->consultarExistencias(eanStr, tipo, 0, [this, ean, cant, tipo](bool ok, const QJsonValue &data, const QString &) {
@@ -174,6 +209,7 @@ void VendedorVentasView::onQuitarFila(int row) {
 
 void VendedorVentasView::limpiarCarrito() {
     m_cart.clear();
+    m_txtCliente->clear();
     recalcularTotales();
 }
 
@@ -207,6 +243,13 @@ void VendedorVentasView::recalcularTotales() {
 }
 
 void VendedorVentasView::onProcesarVenta() {
+    QString cliente = m_txtCliente->text().trimmed();
+    if (cliente.isEmpty()) {
+        Toast::showToast(this, "El nombre del cliente es obligatorio para registrar la venta", Toast::Warning);
+        m_txtCliente->setFocus();
+        return;
+    }
+
     if (m_cart.isEmpty()) {
         Toast::showToast(this, "El carrito de compra está vacío", Toast::Warning);
         return;
@@ -221,7 +264,7 @@ void VendedorVentasView::onProcesarVenta() {
         itemsArr.append(it);
     }
 
-    ApiClient::instance()->registrarVenta(itemsArr, [this](bool ok, const QJsonValue &data, const QString &msg) {
+    ApiClient::instance()->registrarVenta(cliente, itemsArr, [this, cliente](bool ok, const QJsonValue &data, const QString &msg) {
         if (!ok || !data.isObject()) {
             Toast::showToast(this, "Error al procesar venta: " + msg, Toast::Error);
             return;
@@ -229,10 +272,10 @@ void VendedorVentasView::onProcesarVenta() {
 
         VentaResponse vr = VentaResponse::fromJson(data.toObject());
 
-        // Display Receipt Dialog
+        // Display Receipt Dialog with Customer Name
         QDialog dlg(this);
         dlg.setWindowTitle("Comprobante de Venta Exitosa");
-        dlg.setFixedWidth(420);
+        dlg.setFixedWidth(440);
 
         auto *dlgLayout = new QVBoxLayout(&dlg);
         dlgLayout->setSpacing(14);
@@ -242,8 +285,9 @@ void VendedorVentasView::onProcesarVenta() {
             "<h2 style='color: %1; margin:0;'>LIBRERÍA NOVABOOK</h2>"
             "<p style='color: %2; margin:2px;'>Ticket de Venta #%3</p>"
             "<p style='color: %2; margin:2px;'>Fecha: %4</p>"
+            "<p style='color: %1; font-weight: bold; margin:4px;'>Cliente: %5</p>"
             "</div><hr style='border: 1px solid #2A2A2A;'>"
-        ).arg(Theme::Accent).arg(Theme::TextMuted).arg(vr.id_venta).arg(vr.fecha_hora), &dlg);
+        ).arg(Theme::Accent).arg(Theme::TextMuted).arg(vr.id_venta).arg(vr.fecha_hora).arg(vr.cliente), &dlg);
         dlgLayout->addWidget(lblHeader);
 
         QString detailHtml = "<table width='100%' style='color: #F0EDE8; font-size: 12px;'>";

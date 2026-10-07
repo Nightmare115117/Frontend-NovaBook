@@ -42,14 +42,34 @@ public:
     void actualizarUsuario(qint64 id, const QJsonObject &userObj, ApiCallback cb);
     void eliminarUsuario(qint64 id, ApiCallback cb);
 
-    // --- Personal de Bodega ---
+    // --- Catálogo de Géneros ---
+    void listarGeneros(ApiCallback cb);
+
+    // --- CRUD Autores (Bodega / Gerente) ---
+    void listarAutores(ApiCallback cb);
+    void obtenerAutor(int id, ApiCallback cb);
+    void crearAutor(const QJsonObject &autorObj, ApiCallback cb);
+    void actualizarAutor(int id, const QJsonObject &autorObj, ApiCallback cb);
+    void eliminarAutor(int id, ApiCallback cb);
+
+    // --- CRUD Proveedores (Bodega / Gerente) ---
+    void listarProveedores(ApiCallback cb);
+    void obtenerProveedor(int id, ApiCallback cb);
+    void crearProveedor(const QJsonObject &provObj, ApiCallback cb);
+    void actualizarProveedor(int id, const QJsonObject &provObj, ApiCallback cb);
+    void eliminarProveedor(int id, ApiCallback cb);
+
+    // --- Personal de Bodega: Mercancía, Traslados y Compras ---
     void registrarLibroBodega(const QJsonObject &libroObj, ApiCallback cb);
     void registrarRevistaBodega(const QJsonObject &revistaObj, ApiCallback cb);
     void trasladoBodegaLibros(qint64 ean, int cant, const QString &obs, ApiCallback cb);
     void trasladoBodegaRevistas(qint64 ean, int cant, const QString &obs, ApiCallback cb);
+    void registrarCompra(const QJsonObject &compraObj, ApiCallback cb);
+    void listarCompras(ApiCallback cb);
 
     // --- Vendedor ---
     void consultarExistencias(const QString &q, const QString &tipo, int ubicacion, ApiCallback cb);
+    void registrarVenta(const QString &cliente, const QJsonArray &items, ApiCallback cb);
     void registrarVenta(const QJsonArray &items, ApiCallback cb);
     void trasladoTiendaLibros(qint64 ean, int cant, const QString &obs, ApiCallback cb);
     void trasladoTiendaRevistas(qint64 ean, int cant, const QString &obs, ApiCallback cb);

@@ -2,6 +2,7 @@
 #include "Theme.h"
 #include "ApiClient.h"
 #include "Toast.h"
+#include "EanClassifier.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
@@ -15,7 +16,7 @@ BodegaRegistroView::BodegaRegistroView(QWidget *parent)
     layout->setContentsMargins(32, 28, 32, 28);
     layout->setSpacing(20);
 
-    auto *title = new QLabel("Alta de Mercancía en Almacén", this);
+    auto *title = new QLabel("Alta de Mercancía en Almacén (Ingreso por EAN)", this);
     title->setStyleSheet(QString("font-size: 22px; font-weight: bold; color: %1;").arg(Theme::TextPrimary));
     layout->addWidget(title);
 
@@ -36,17 +37,24 @@ BodegaRegistroView::BodegaRegistroView(QWidget *parent)
     auto *form = new QFormLayout();
     form->setSpacing(12);
 
-    m_comboTipo = new QComboBox(card);
-    m_comboTipo->addItem("Libro", "libro");
-    m_comboTipo->addItem("Revista", "revista");
-    form->addRow("Tipo de Producto:", m_comboTipo);
+    // 1. Unified EAN Input with Automatic Detection
+    auto *eanContainer = new QWidget(card);
+    auto *eanLayout = new QVBoxLayout(eanContainer);
+    eanLayout->setContentsMargins(0, 0, 0, 0);
+    eanLayout->setSpacing(4);
 
-    m_txtEan = new QLineEdit(card);
-    m_txtEan->setPlaceholderText("Código de barras EAN-13 (13 dígitos numéricos)");
-    form->addRow("Código EAN:", m_txtEan);
+    m_txtEan = new QLineEdit(eanContainer);
+    m_txtEan->setPlaceholderText("Escanear o ingresar EAN-13 (13 dígitos)...");
+    eanLayout->addWidget(m_txtEan);
+
+    m_lblEanStatus = new QLabel("Ingresa el código EAN-13 para clasificar automáticamente como Libro o Revista", eanContainer);
+    m_lblEanStatus->setStyleSheet(QString("font-size: 12px; color: %1; font-weight: 500;").arg(Theme::TextMuted));
+    eanLayout->addWidget(m_lblEanStatus);
+
+    form->addRow("Código EAN-13:", eanContainer);
 
     m_txtSku = new QLineEdit(card);
-    m_txtSku->setPlaceholderText("SKU numérico (6 a 7 dígitos)");
+    m_txtSku->setPlaceholderText("SKU numérico interno (opcional)");
     form->addRow("SKU Interno:", m_txtSku);
 
     m_txtNombre = new QLineEdit(card);
@@ -64,26 +72,19 @@ BodegaRegistroView::BodegaRegistroView(QWidget *parent)
     m_spnCantidad->setValue(10);
     form->addRow("Cantidad Recibida:", m_spnCantidad);
 
-    // Dynamic fields for Libro
+    // 2. Dynamic fields for Libro (ISBN 978 / 979)
     m_panelLibro = new QWidget(card);
     auto *libroLayout = new QFormLayout(m_panelLibro);
     libroLayout->setContentsMargins(0, 0, 0, 0);
     libroLayout->setSpacing(12);
 
-    m_comboGenero = new QComboBox(m_panelLibro);
-    m_comboGenero->addItem("Psicología (11)", 11);
-    m_comboGenero->addItem("Autoayuda (12)", 12);
-    m_comboGenero->addItem("Metafísica (13)", 13);
-    m_comboGenero->addItem("Infantiles (61)", 61);
-    libroLayout->addRow("Género Literario:", m_comboGenero);
-
-    m_txtAutor = new QLineEdit(m_panelLibro);
-    m_txtAutor->setPlaceholderText("Nombre del autor o autores");
-    libroLayout->addRow("Autor:", m_txtAutor);
+    m_comboAutor = new QComboBox(m_panelLibro);
+    libroLayout->addRow("Autor Registrado:", m_comboAutor);
 
     form->addRow(m_panelLibro);
+    m_panelLibro->hide();
 
-    // Dynamic fields for Revista
+    // 3. Dynamic fields for Revista (ISSN 977)
     m_panelRevista = new QWidget(card);
     auto *revistaLayout = new QFormLayout(m_panelRevista);
     revistaLayout->setContentsMargins(0, 0, 0, 0);
@@ -101,7 +102,23 @@ BodegaRegistroView::BodegaRegistroView(QWidget *parent)
     form->addRow(m_panelRevista);
     m_panelRevista->hide();
 
-    // Mueble y Proveedor
+    // 4. Multiple Genres Selection (Relación Muchos a Muchos N:M)
+    m_listGeneros = new QListWidget(card);
+    m_listGeneros->setMaximumHeight(100);
+    m_listGeneros->setStyleSheet(QString(R"(
+        QListWidget {
+            background-color: %1;
+            border: 1px solid %2;
+            border-radius: 4px;
+            color: %3;
+        }
+        QListWidget::item {
+            padding: 3px 6px;
+        }
+    )").arg(Theme::BgInput).arg(Theme::Border).arg(Theme::TextPrimary));
+    form->addRow("Géneros Literarios (N:M):", m_listGeneros);
+
+    // 5. Mueble y Proveedor
     m_comboMueble = new QComboBox(card);
     m_comboMueble->addItem("Mueble 11", 11);
     m_comboMueble->addItem("Mueble 12", 12);
@@ -111,10 +128,7 @@ BodegaRegistroView::BodegaRegistroView(QWidget *parent)
     form->addRow("Mueble de Asignación:", m_comboMueble);
 
     m_comboProveedor = new QComboBox(card);
-    m_comboProveedor->addItem("Planeta México (1)", 1);
-    m_comboProveedor->addItem("Planeta México Infantil (2)", 2);
-    m_comboProveedor->addItem("Penguin Random House (3)", 3);
-    form->addRow("Proveedor:", m_comboProveedor);
+    form->addRow("Proveedor Oficial:", m_comboProveedor);
 
     cardLayout->addLayout(form);
 
@@ -134,43 +148,127 @@ BodegaRegistroView::BodegaRegistroView(QWidget *parent)
     layout->addWidget(card);
     layout->addStretch();
 
-    connect(m_comboTipo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &BodegaRegistroView::onTipoChanged);
+    connect(m_txtEan, &QLineEdit::textChanged, this, &BodegaRegistroView::onEanChanged);
     connect(m_btnGuardar, &QPushButton::clicked, this, &BodegaRegistroView::onRegistrar);
     connect(m_btnLimpiar, &QPushButton::clicked, this, &BodegaRegistroView::limpiarCampos);
+
+    cargarCatalogos();
 }
 
-void BodegaRegistroView::onTipoChanged(int index) {
-    bool isLibro = (index == 0);
-    m_panelLibro->setVisible(isLibro);
-    m_panelRevista->setVisible(!isLibro);
+void BodegaRegistroView::cargarCatalogos() {
+    // 1. Géneros
+    ApiClient::instance()->listarGeneros([this](bool ok, const QJsonValue &data, const QString &) {
+        if (!ok || !data.isArray()) return;
+        m_listGeneros->clear();
+        m_generos.clear();
+        QJsonArray arr = data.toArray();
+        for (int i = 0; i < arr.size(); ++i) {
+            GeneroDto g = GeneroDto::fromJson(arr.at(i).toObject());
+            m_generos.append(g);
+
+            auto *item = new QListWidgetItem(g.genero_literario, m_listGeneros);
+            item->setData(Qt::UserRole, g.id_genero);
+            item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+            item->setCheckState(Qt::Unchecked);
+        }
+    });
+
+    // 2. Autores
+    ApiClient::instance()->listarAutores([this](bool ok, const QJsonValue &data, const QString &) {
+        if (!ok || !data.isArray()) return;
+        m_comboAutor->clear();
+        m_autores.clear();
+        QJsonArray arr = data.toArray();
+        for (int i = 0; i < arr.size(); ++i) {
+            AutorDto a = AutorDto::fromJson(arr.at(i).toObject());
+            m_autores.append(a);
+            QString label = QString("%1 %2").arg(a.nombre, a.apellidos);
+            if (!a.nacionalidad.isEmpty()) label += QString(" (%1)").arg(a.nacionalidad);
+            m_comboAutor->addItem(label, a.id_autor);
+        }
+    });
+
+    // 3. Proveedores
+    ApiClient::instance()->listarProveedores([this](bool ok, const QJsonValue &data, const QString &) {
+        if (!ok || !data.isArray()) return;
+        m_comboProveedor->clear();
+        m_proveedores.clear();
+        QJsonArray arr = data.toArray();
+        for (int i = 0; i < arr.size(); ++i) {
+            ProveedorDto p = ProveedorDto::fromJson(arr.at(i).toObject());
+            m_proveedores.append(p);
+            m_comboProveedor->addItem(QString("%1 (RFC: %2)").arg(p.nombre_proveedor, p.rfc), p.id_proveedor);
+        }
+    });
+}
+
+void BodegaRegistroView::onEanChanged(const QString &text) {
+    auto res = EanClassifier::clasificar(text);
+
+    m_lblEanStatus->setText(res.mensaje);
+    m_lblEanStatus->setStyleSheet(QString("font-size: 12px; color: %1; font-weight: %2;")
+                                     .arg(res.colorEstilo, res.esValido || res.colorEstilo == Theme::Error ? "bold" : "500"));
+
+    if (res.tipo == EanClassifier::Tipo::Libro) {
+        m_tipoDetectado = DetectedType::Libro;
+        m_panelLibro->show();
+        m_panelRevista->hide();
+    } else if (res.tipo == EanClassifier::Tipo::Revista) {
+        m_tipoDetectado = DetectedType::Revista;
+        m_panelLibro->hide();
+        m_panelRevista->show();
+    } else {
+        m_tipoDetectado = DetectedType::Desconocido;
+        m_panelLibro->hide();
+        m_panelRevista->hide();
+    }
 }
 
 void BodegaRegistroView::limpiarCampos() {
     m_txtEan->clear();
     m_txtSku->clear();
     m_txtNombre->clear();
-    m_txtAutor->clear();
     m_txtPeriodicidad->clear();
     m_spnPrecio->setValue(199.0);
     m_spnCantidad->setValue(10);
     m_spnEdicion->setValue(1);
+    m_lblEanStatus->setText("Ingresa el código EAN-13 para clasificar automáticamente como Libro o Revista");
+    m_lblEanStatus->setStyleSheet(QString("font-size: 12px; color: %1;").arg(Theme::TextMuted));
+    m_panelLibro->hide();
+    m_panelRevista->hide();
+    m_tipoDetectado = DetectedType::Desconocido;
+
+    for (int i = 0; i < m_listGeneros->count(); ++i) {
+        m_listGeneros->item(i)->setCheckState(Qt::Unchecked);
+    }
 }
 
 void BodegaRegistroView::onRegistrar() {
-    QString eanStr = m_txtEan->text().trimmed();
-    if (eanStr.length() != 13 || !eanStr.toLongLong()) {
-        Toast::showToast(this, "El código EAN debe tener 13 dígitos numéricos", Toast::Warning);
+    if (m_tipoDetectado == DetectedType::Desconocido) {
+        Toast::showToast(this, "Ingresa un código EAN-13 válido (978/979 para libros o 977 para revistas)", Toast::Warning);
         return;
     }
 
-    qint64 ean = eanStr.toLongLong();
+    qint64 ean = m_txtEan->text().trimmed().toLongLong();
     QString nombre = m_txtNombre->text().trimmed();
     if (nombre.isEmpty()) {
         Toast::showToast(this, "El título o nombre del producto es obligatorio", Toast::Warning);
         return;
     }
 
-    bool isLibro = (m_comboTipo->currentIndex() == 0);
+    if (m_comboProveedor->currentIndex() < 0) {
+        Toast::showToast(this, "Selecciona un proveedor válido", Toast::Warning);
+        return;
+    }
+
+    // Obtener géneros seleccionados (Relación N:M)
+    QJsonArray generosArr;
+    for (int i = 0; i < m_listGeneros->count(); ++i) {
+        auto *item = m_listGeneros->item(i);
+        if (item->checkState() == Qt::Checked) {
+            generosArr.append(item->data(Qt::UserRole).toInt());
+        }
+    }
 
     QJsonObject obj;
     obj["codigo_ean"] = ean;
@@ -181,18 +279,21 @@ void BodegaRegistroView::onRegistrar() {
     obj["id_proveedor"] = m_comboProveedor->currentData().toInt();
     obj["precio"] = m_spnPrecio->value();
     obj["cantidad"] = m_spnCantidad->value();
-    obj["id_ubicacion"] = 2; // Ubicación Bodega
+    obj["id_ubicacion"] = 2; // Bodega
+    obj["generos"] = generosArr;
 
-    if (isLibro) {
+    if (m_tipoDetectado == DetectedType::Libro) {
         obj["nombre_libro"] = nombre;
-        obj["id_genero"] = m_comboGenero->currentData().toInt();
-        if (!m_txtAutor->text().trimmed().isEmpty()) {
-            obj["autor"] = m_txtAutor->text().trimmed();
+
+        QJsonArray autoresArr;
+        if (m_comboAutor->currentIndex() >= 0) {
+            autoresArr.append(m_comboAutor->currentData().toInt());
         }
+        obj["autores"] = autoresArr;
 
         ApiClient::instance()->registrarLibroBodega(obj, [this](bool ok, const QJsonValue &, const QString &msg) {
             if (ok) {
-                Toast::showToast(this, "Libro registrado exitosamente en Bodega", Toast::Success);
+                Toast::showToast(this, "Libro registrado exitosamente en Bodega con géneros y autor asociados", Toast::Success);
                 limpiarCampos();
             } else {
                 Toast::showToast(this, "Error al registrar libro: " + msg, Toast::Error);
@@ -207,7 +308,7 @@ void BodegaRegistroView::onRegistrar() {
 
         ApiClient::instance()->registrarRevistaBodega(obj, [this](bool ok, const QJsonValue &, const QString &msg) {
             if (ok) {
-                Toast::showToast(this, "Revista registrada exitosamente en Bodega", Toast::Success);
+                Toast::showToast(this, "Revista registrada exitosamente en Bodega con géneros asociados", Toast::Success);
                 limpiarCampos();
             } else {
                 Toast::showToast(this, "Error al registrar revista: " + msg, Toast::Error);

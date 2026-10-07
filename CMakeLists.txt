@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(novabook_frontend VERSION 1.0.0 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -35,6 +35,9 @@ set(SOURCES
     src/views/jefe/JefeUsuariosView.cpp
     src/views/bodega/BodegaDashboardView.cpp
     src/views/bodega/BodegaRegistroView.cpp
+    src/views/bodega/BodegaAutoresView.cpp
+    src/views/bodega/BodegaProveedoresView.cpp
+    src/views/bodega/BodegaComprasView.cpp
     src/views/bodega/BodegaTrasladoView.cpp
     src/views/bodega/BodegaInventarioView.cpp
     src/views/vendedor/VendedorDashboardView.cpp
@@ -48,6 +51,7 @@ set(HEADERS
     src/core/Theme.h
     src/core/Models.h
     src/core/ApiClient.h
+    src/core/EanClassifier.h
     src/widgets/StatCard.h
     src/widgets/Toast.h
     src/views/LoginWindow.h
@@ -58,6 +62,9 @@ set(HEADERS
     src/views/jefe/JefeUsuariosView.h
     src/views/bodega/BodegaDashboardView.h
     src/views/bodega/BodegaRegistroView.h
+    src/views/bodega/BodegaAutoresView.h
+    src/views/bodega/BodegaProveedoresView.h
+    src/views/bodega/BodegaComprasView.h
     src/views/bodega/BodegaTrasladoView.h
     src/views/bodega/BodegaInventarioView.h
     src/views/vendedor/VendedorDashboardView.h

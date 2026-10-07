@@ -99,7 +99,7 @@ LoginWindow::LoginWindow(QWidget *parent)
     lblUrl->setStyleSheet(QString("font-size: 10px; font-weight: bold; color: %1;").arg(Theme::TextMuted));
     cardLayout->addWidget(lblUrl);
 
-    m_txtServerUrl = new QLineEdit("http://127.0.0.1:3000", card);
+    m_txtServerUrl = new QLineEdit(ApiClient::instance()->baseUrl(), card);
     m_txtServerUrl->setStyleSheet("font-size: 11px;");
     cardLayout->addWidget(m_txtServerUrl);
 

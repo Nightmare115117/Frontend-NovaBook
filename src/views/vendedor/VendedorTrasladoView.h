@@ -15,11 +15,12 @@ public:
     explicit VendedorTrasladoView(QWidget *parent = nullptr);
 
 private slots:
+    void onEanChanged(const QString &text);
     void onTrasladar();
 
 private:
-    QComboBox *m_comboTipo;
     QLineEdit *m_txtEan;
+    QLabel *m_lblEanStatus;
     QSpinBox *m_spnCantidad;
     QLineEdit *m_txtObs;
     QPushButton *m_btnTrasladar;

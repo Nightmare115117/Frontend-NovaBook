@@ -17,6 +17,9 @@ class BodegaDashboardView;
 class BodegaRegistroView;
 class BodegaTrasladoView;
 class BodegaInventarioView;
+class BodegaComprasView;
+class BodegaAutoresView;
+class BodegaProveedoresView;
 
 class VendedorDashboardView;
 class VendedorConsultaView;
@@ -64,6 +67,9 @@ private:
     // Bodega Views
     BodegaDashboardView *m_bodegaDashboard = nullptr;
     BodegaRegistroView *m_bodegaRegistro = nullptr;
+    BodegaComprasView *m_bodegaCompras = nullptr;
+    BodegaAutoresView *m_bodegaAutores = nullptr;
+    BodegaProveedoresView *m_bodegaProveedores = nullptr;
     BodegaTrasladoView *m_bodegaTraslado = nullptr;
     BodegaInventarioView *m_bodegaInventario = nullptr;
 

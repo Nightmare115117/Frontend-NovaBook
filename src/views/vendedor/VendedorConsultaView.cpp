@@ -51,8 +51,8 @@ VendedorConsultaView::VendedorConsultaView(QWidget *parent)
 
     // Table
     m_table = new QTableWidget(this);
-    m_table->setColumnCount(8);
-    m_table->setHorizontalHeaderLabels({"EAN", "SKU", "Título", "Tipo", "Autor / Editorial", "Stock Tienda", "Stock Bodega", "Precio"});
+    m_table->setColumnCount(9);
+    m_table->setHorizontalHeaderLabels({"EAN", "SKU", "Título", "Tipo", "Autor / Editorial", "Géneros", "Stock Tienda", "Stock Bodega", "Precio"});
     m_table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     m_table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
     m_table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
@@ -61,6 +61,7 @@ VendedorConsultaView::VendedorConsultaView(QWidget *parent)
     m_table->horizontalHeader()->setSectionResizeMode(5, QHeaderView::ResizeToContents);
     m_table->horizontalHeader()->setSectionResizeMode(6, QHeaderView::ResizeToContents);
     m_table->horizontalHeader()->setSectionResizeMode(7, QHeaderView::ResizeToContents);
+    m_table->horizontalHeader()->setSectionResizeMode(8, QHeaderView::ResizeToContents);
     m_table->verticalHeader()->setVisible(false);
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -99,16 +100,17 @@ void VendedorConsultaView::buscarExistencias() {
             m_table->setItem(i, 2, new QTableWidgetItem(ex.titulo));
             m_table->setItem(i, 3, new QTableWidgetItem(ex.tipo_producto));
             m_table->setItem(i, 4, new QTableWidgetItem(ex.autor_o_editorial.isEmpty() ? "-" : ex.autor_o_editorial));
+            m_table->setItem(i, 5, new QTableWidgetItem(ex.generos.isEmpty() ? "General" : ex.generos));
 
             auto *itemTienda = new QTableWidgetItem(QString::number(ex.stock_tienda));
             itemTienda->setForeground(QColor(Theme::Role3));
-            m_table->setItem(i, 5, itemTienda);
+            m_table->setItem(i, 6, itemTienda);
 
             auto *itemBodega = new QTableWidgetItem(QString::number(ex.stock_bodega));
             itemBodega->setForeground(QColor(Theme::Role2));
-            m_table->setItem(i, 6, itemBodega);
+            m_table->setItem(i, 7, itemBodega);
 
-            m_table->setItem(i, 7, new QTableWidgetItem(QString("$ %1").arg(QString::number(ex.precio, 'f', 2))));
+            m_table->setItem(i, 8, new QTableWidgetItem(QString("$ %1").arg(QString::number(ex.precio, 'f', 2))));
         }
     });
 }

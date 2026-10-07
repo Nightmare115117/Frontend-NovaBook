@@ -2,6 +2,7 @@
 #include "Theme.h"
 #include "ApiClient.h"
 #include "Toast.h"
+#include "EanClassifier.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
@@ -37,14 +38,14 @@ BodegaTrasladoView::BodegaTrasladoView(QWidget *parent)
     auto *form = new QFormLayout();
     form->setSpacing(12);
 
-    m_comboTipo = new QComboBox(card);
-    m_comboTipo->addItem("Libros", "libro");
-    m_comboTipo->addItem("Revistas", "revista");
-    form->addRow("Tipo de Artículo:", m_comboTipo);
-
     m_txtEan = new QLineEdit(card);
     m_txtEan->setPlaceholderText("Código EAN del producto (13 dígitos)");
     form->addRow("Código EAN:", m_txtEan);
+
+    m_lblEanStatus = new QLabel("Ingresa el código EAN-13 para clasificar automáticamente como Libro o Revista", card);
+    m_lblEanStatus->setStyleSheet(QString("font-size: 12px; color: %1;").arg(Theme::TextMuted));
+    m_lblEanStatus->setWordWrap(true);
+    form->addRow("", m_lblEanStatus);
 
     m_spnCantidad = new QSpinBox(card);
     m_spnCantidad->setRange(1, 9999);
@@ -95,20 +96,26 @@ BodegaTrasladoView::BodegaTrasladoView(QWidget *parent)
     layout->addWidget(m_resCard);
     layout->addStretch();
 
+    connect(m_txtEan, &QLineEdit::textChanged, this, &BodegaTrasladoView::onEanChanged);
     connect(m_btnTrasladar, &QPushButton::clicked, this, &BodegaTrasladoView::onTrasladar);
+}
+
+void BodegaTrasladoView::onEanChanged(const QString &text) {
+    EanClassifier::aplicarAControles(text, m_lblEanStatus);
 }
 
 void BodegaTrasladoView::onTrasladar() {
     QString eanStr = m_txtEan->text().trimmed();
-    if (eanStr.isEmpty() || !eanStr.toLongLong()) {
-        Toast::showToast(this, "Ingresa un código EAN válido", Toast::Warning);
+    auto eanRes = EanClassifier::clasificar(eanStr);
+    if (!eanRes.esValido) {
+        Toast::showToast(this, eanRes.mensaje, Toast::Warning);
         return;
     }
 
     qint64 ean = eanStr.toLongLong();
     int cant = m_spnCantidad->value();
     QString obs = m_txtObs->text().trimmed();
-    bool isLibro = (m_comboTipo->currentIndex() == 0);
+    bool isLibro = (eanRes.tipo == EanClassifier::Tipo::Libro);
 
     auto handleResponse = [this](bool ok, const QJsonValue &data, const QString &msg) {
         if (!ok || !data.isObject()) {

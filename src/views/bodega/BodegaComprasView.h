@@ -3,48 +3,54 @@
 #include <QWidget>
 #include <QTableWidget>
 #include <QLineEdit>
-#include <QSpinBox>
 #include <QComboBox>
+#include <QSpinBox>
+#include <QDoubleSpinBox>
 #include <QPushButton>
 #include <QLabel>
+#include <QList>
 #include "Models.h"
 
-struct CartItem {
+struct CompraCartItem {
     qint64 ean = 0;
-    QString tipo = "libro";
+    QString tipo;
     QString nombre;
-    int cantidad = 1;
-    double precio = 0.0;
+    int cantidad = 0;
+    double costo_unitario = 0.0;
     double subtotal = 0.0;
 };
 
-class VendedorVentasView : public QWidget {
+class BodegaComprasView : public QWidget {
     Q_OBJECT
 
 public:
-    explicit VendedorVentasView(QWidget *parent = nullptr);
+    explicit BodegaComprasView(QWidget *parent = nullptr);
+    void cargarProveedores();
 
 private slots:
     void onEanChanged(const QString &text);
-    void onAgregarAlCarrito();
+    void onAgregarArticulo();
     void onQuitarFila(int row);
-    void onProcesarVenta();
+    void onRegistrarCompra();
     void limpiarCarrito();
 
 private:
     void recalcularTotales();
 
-    QLineEdit *m_txtCliente;
+    QComboBox *m_comboProveedor;
     QLineEdit *m_txtEan;
     QLabel *m_lblEanStatus;
     QSpinBox *m_spnCantidad;
+    QDoubleSpinBox *m_spnCosto;
     QPushButton *m_btnAgregar;
 
     QTableWidget *m_tableCart;
+    QLineEdit *m_txtObs;
     QLabel *m_lblTotalArticulos;
     QLabel *m_lblTotalPagar;
-    QPushButton *m_btnProcesar;
     QPushButton *m_btnVaciar;
+    QPushButton *m_btnProcesar;
 
-    QList<CartItem> m_cart;
+    QList<CompraCartItem> m_items;
+    QList<ProveedorDto> m_proveedores;
 };

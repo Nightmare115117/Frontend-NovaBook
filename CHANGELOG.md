@@ -83,10 +83,17 @@ No mezclar ni exponer vistas entre roles no autorizados:
 ## [Unreleased]
 
 ### ➕ Añadido (Added)
+- **Motor Centralizado de Clasificación EAN (`src/core/EanClassifier.h`)**: Módulo header-only reutilizable con la función `EanClassifier::clasificar(ean)` y `EanClassifier::aplicarAControles(ean, lblStatus, comboTipo, ...)`. Implementa validación estricta de 13 dígitos numéricos, cálculo de suma ponderada módulo 10 (odd + even * 3) para verificación de dígito de control, y autoclasificación GS1 por prefijo (`978`/`979` $\to$ Libro en verde `#5CBF8A`, `977` $\to$ Revista en azul `#7BB9D9`, y rechazo inmediato para otros prefijos).
 - **Web SPA (`web/index.html`, `web/styles.css`, `web/app.js`)**: Aplicación web SPA completa responsiva y corporativa construida con la paleta oficial (`#0D0D0D`, `#161616`, `#C8973A`), con vistas dedicadas para Gerente (CRUD Usuarios), Bodega (Alta libros/revistas y traslados Bodega $\to$ Tienda), Jefe (Historial de devoluciones, evaluación/aprobación y bitácora) y Vendedor (POS interactivo multilínea, consulta en vivo, traslados y solicitudes con descarga directa de PDF).
 - **Script de Pruebas E2E (`api_migrado/test_e2e.sh`)**: Suite automatizada con curl que verifica todos los endpoints REST y transacciones atómicas en MySQL para los 4 roles.
 
 ### 🔄 Modificado (Changed)
+- **`BodegaRegistroView.cpp` (Bodega - Registro de Mercancía)**: Refactorizado para utilizar el motor centralizado `EanClassifier::clasificar(text)` eliminando código duplicado y manteniendo el comportamiento de referencia para libros (ISBN) y revistas (ISSN).
+- **`BodegaTrasladoView.*` (Bodega - Requisición Bodega ➔ Tienda)**: Eliminado el menú desplegable manual `m_comboTipo`. La distinción entre Libro y Revista se determina de forma 100% automática a partir del código EAN (prefijo 978/979 vs 977) al procesar la requisición.
+- **`BodegaComprasView.*` (Bodega - Compras a Proveedor)**: Eliminado el selector manual de tipo `m_comboTipo` en la barra de adición de piezas; el tipo se clasifica e ingresa a la orden automáticamente según el EAN analizado.
+- **`VendedorVentasView.*` (Vendedor - Punto de Venta / Baja por Venta)**: Eliminado el selector manual `m_comboTipo` en la barra de escaneo/carrito; la consulta de existencias y agregado al carrito deduce el tipo de producto directamente del EAN.
+- **`VendedorTrasladoView.*` (Vendedor - Requisición Tienda ➔ Bodega)**: Eliminado el menú desplegable `m_comboTipo`; la dirección del reingreso se calcula automáticamente con el clasificador EAN.
+- **`VendedorDevolucionView.*` (Vendedor - Solicitud de Devolución)**: Eliminado el selector manual `m_comboTipo` en la cabecera. Cada pieza agregada se auto-clasifica individualmente mostrando su columna "Tipo" en la tabla de piezas y derivando el lote automáticamente.
 - **`LoginWindow.cpp`**: Integración de botones interactivos de acceso rápido para los 4 roles (Gerente `1001`, Jefe `350976899`, Bodega `628777130`, Vendedor `628777129`) con auto-llenado y envío de login automático para pruebas rápidas. Adición del distintivo dorado del rol Gerente.
 - **`MainWindow.cpp`**: Sincronización y confirmación de soporte para el rol Gerente (`id_roles = 4`), habilitando acceso directo al panel administrativo y al módulo completo de CRUD de usuarios (`JefeUsuariosView`).
 - **`api_migrado/src/productos/repo/producto.rs`**: Adaptación a `sqlx 0.9` envolviendo consultas SQL dinámicas con `sqlx::AssertSqlSafe(sql.as_str())`. Eliminación de imports en desuso.

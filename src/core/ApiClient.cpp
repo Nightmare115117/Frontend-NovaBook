@@ -1,6 +1,56 @@
 #include "ApiClient.h"
+#include <QCoreApplication>
+#include <QDir>
+#include <QFile>
+#include <QTextStream>
 #include <QUrl>
 #include <QDebug>
+
+using namespace std;
+
+static string loadApiUrl() {
+    const char* envUrl = getenv("API_URL");
+    if (envUrl && *envUrl != '\0') {
+        return string(envUrl);
+    }
+
+    const QStringList envFileCandidates = {
+        QDir::current().absoluteFilePath(".env"),
+        QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("../.env")
+    };
+
+    for (const QString &envFilePath : envFileCandidates) {
+        QFile envFile(envFilePath);
+        if (!envFile.open(QIODevice::ReadOnly)) {
+            continue;
+        }
+
+        QTextStream stream(&envFile);
+        while (!stream.atEnd()) {
+            QString line = stream.readLine().trimmed();
+            if (line.isEmpty() || line.startsWith('#')) {
+                continue;
+            }
+
+            const int separator = line.indexOf('=');
+            if (separator <= 0) {
+                continue;
+            }
+
+            const QString key = line.left(separator).trimmed();
+            QString value = line.mid(separator + 1).trimmed();
+            if (value.startsWith('"') && value.endsWith('"')) {
+                value = value.mid(1, value.length() - 2);
+            }
+
+            if (key == "API_URL" && !value.isEmpty()) {
+                return value.toStdString();
+            }
+        }
+    }
+
+    return string("http://localhost:3000");
+}
 
 ApiClient* ApiClient::instance() {
     static ApiClient s_instance;
@@ -10,7 +60,7 @@ ApiClient* ApiClient::instance() {
 ApiClient::ApiClient(QObject *parent)
     : QObject(parent)
     , m_nam(new QNetworkAccessManager(this))
-    , m_baseUrl("http://127.0.0.1:3000")
+    , m_baseUrl(QString::fromStdString(loadApiUrl()))
 {
 }
 
@@ -53,8 +103,7 @@ UsuarioDto ApiClient::currentUser() const {
 }
 
 void ApiClient::sendRequest(const QString &verb, const QString &endpoint, const QUrlQuery &query,
-                            const QByteArray &body, ApiCallback cb)
-{
+                            const QByteArray &body, ApiCallback cb) {
     QUrl url(m_baseUrl + endpoint);
     if (!query.isEmpty()) {
         url.setQuery(query);
@@ -167,6 +216,56 @@ void ApiClient::eliminarUsuario(qint64 id, ApiCallback cb) {
     sendRequest("DELETE", QString("/api/usuarios/%1").arg(id), QUrlQuery(), QByteArray(), cb);
 }
 
+// --- Catálogo de Géneros ---
+
+void ApiClient::listarGeneros(ApiCallback cb) {
+    sendRequest("GET", "/api/generos", QUrlQuery(), QByteArray(), cb);
+}
+
+// --- CRUD Autores ---
+
+void ApiClient::listarAutores(ApiCallback cb) {
+    sendRequest("GET", "/api/autores", QUrlQuery(), QByteArray(), cb);
+}
+
+void ApiClient::obtenerAutor(int id, ApiCallback cb) {
+    sendRequest("GET", QString("/api/autores/%1").arg(id), QUrlQuery(), QByteArray(), cb);
+}
+
+void ApiClient::crearAutor(const QJsonObject &autorObj, ApiCallback cb) {
+    sendRequest("POST", "/api/autores", QUrlQuery(), QJsonDocument(autorObj).toJson(), cb);
+}
+
+void ApiClient::actualizarAutor(int id, const QJsonObject &autorObj, ApiCallback cb) {
+    sendRequest("PUT", QString("/api/autores/%1").arg(id), QUrlQuery(), QJsonDocument(autorObj).toJson(), cb);
+}
+
+void ApiClient::eliminarAutor(int id, ApiCallback cb) {
+    sendRequest("DELETE", QString("/api/autores/%1").arg(id), QUrlQuery(), QByteArray(), cb);
+}
+
+// --- CRUD Proveedores ---
+
+void ApiClient::listarProveedores(ApiCallback cb) {
+    sendRequest("GET", "/api/proveedores", QUrlQuery(), QByteArray(), cb);
+}
+
+void ApiClient::obtenerProveedor(int id, ApiCallback cb) {
+    sendRequest("GET", QString("/api/proveedores/%1").arg(id), QUrlQuery(), QByteArray(), cb);
+}
+
+void ApiClient::crearProveedor(const QJsonObject &provObj, ApiCallback cb) {
+    sendRequest("POST", "/api/proveedores", QUrlQuery(), QJsonDocument(provObj).toJson(), cb);
+}
+
+void ApiClient::actualizarProveedor(int id, const QJsonObject &provObj, ApiCallback cb) {
+    sendRequest("PUT", QString("/api/proveedores/%1").arg(id), QUrlQuery(), QJsonDocument(provObj).toJson(), cb);
+}
+
+void ApiClient::eliminarProveedor(int id, ApiCallback cb) {
+    sendRequest("DELETE", QString("/api/proveedores/%1").arg(id), QUrlQuery(), QByteArray(), cb);
+}
+
 // --- Personal de Bodega ---
 
 void ApiClient::registrarLibroBodega(const QJsonObject &libroObj, ApiCallback cb) {
@@ -193,6 +292,14 @@ void ApiClient::trasladoBodegaRevistas(qint64 ean, int cant, const QString &obs,
     sendRequest("POST", "/api/bodega/movimientos/revistas", QUrlQuery(), QJsonDocument(req).toJson(), cb);
 }
 
+void ApiClient::registrarCompra(const QJsonObject &compraObj, ApiCallback cb) {
+    sendRequest("POST", "/api/bodega/compras", QUrlQuery(), QJsonDocument(compraObj).toJson(), cb);
+}
+
+void ApiClient::listarCompras(ApiCallback cb) {
+    sendRequest("GET", "/api/bodega/compras", QUrlQuery(), QByteArray(), cb);
+}
+
 // --- Vendedor ---
 
 void ApiClient::consultarExistencias(const QString &q, const QString &tipo, int ubicacion, ApiCallback cb) {
@@ -204,10 +311,15 @@ void ApiClient::consultarExistencias(const QString &q, const QString &tipo, int 
     sendRequest("GET", "/api/vendedor/existencias", query, QByteArray(), cb);
 }
 
-void ApiClient::registrarVenta(const QJsonArray &items, ApiCallback cb) {
+void ApiClient::registrarVenta(const QString &cliente, const QJsonArray &items, ApiCallback cb) {
     QJsonObject req;
+    req["cliente"] = cliente;
     req["items"] = items;
     sendRequest("POST", "/api/vendedor/ventas", QUrlQuery(), QJsonDocument(req).toJson(), cb);
+}
+
+void ApiClient::registrarVenta(const QJsonArray &items, ApiCallback cb) {
+    registrarVenta("Público en General", items, cb);
 }
 
 void ApiClient::trasladoTiendaLibros(qint64 ean, int cant, const QString &obs, ApiCallback cb) {

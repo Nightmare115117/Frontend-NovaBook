@@ -17,6 +17,9 @@
 // Bodega Views
 #include "BodegaDashboardView.h"
 #include "BodegaRegistroView.h"
+#include "BodegaComprasView.h"
+#include "BodegaAutoresView.h"
+#include "BodegaProveedoresView.h"
 #include "BodegaTrasladoView.h"
 #include "BodegaInventarioView.h"
 
@@ -244,18 +247,27 @@ void MainWindow::buildRoleViews() {
         // --- BODEGA ---
         m_bodegaDashboard = new BodegaDashboardView(m_stack);
         m_bodegaRegistro = new BodegaRegistroView(m_stack);
+        m_bodegaCompras = new BodegaComprasView(m_stack);
+        m_bodegaAutores = new BodegaAutoresView(m_stack);
+        m_bodegaProveedores = new BodegaProveedoresView(m_stack);
         m_bodegaTraslado = new BodegaTrasladoView(m_stack);
         m_bodegaInventario = new BodegaInventarioView(m_stack);
 
-        m_stack->addWidget(m_bodegaDashboard);  // index 0
-        m_stack->addWidget(m_bodegaRegistro);   // index 1
-        m_stack->addWidget(m_bodegaTraslado);   // index 2
-        m_stack->addWidget(m_bodegaInventario); // index 3
+        m_stack->addWidget(m_bodegaDashboard);   // index 0
+        m_stack->addWidget(m_bodegaRegistro);    // index 1
+        m_stack->addWidget(m_bodegaCompras);     // index 2
+        m_stack->addWidget(m_bodegaAutores);     // index 3
+        m_stack->addWidget(m_bodegaProveedores); // index 4
+        m_stack->addWidget(m_bodegaTraslado);    // index 5
+        m_stack->addWidget(m_bodegaInventario);  // index 6
 
         m_navButtons.append(createNavButton("⊞  Panel Principal", 0));
-        m_navButtons.append(createNavButton("＋  Registrar Mercancía", 1));
-        m_navButtons.append(createNavButton("➔  Requisición de Salida", 2));
-        m_navButtons.append(createNavButton("◎  Consultar Inventario", 3));
+        m_navButtons.append(createNavButton("＋  Registrar Mercancía (EAN)", 1));
+        m_navButtons.append(createNavButton("⬇  Compras a Proveedor", 2));
+        m_navButtons.append(createNavButton("✎  CRUD Autores", 3));
+        m_navButtons.append(createNavButton("🏢  CRUD Proveedores", 4));
+        m_navButtons.append(createNavButton("➔  Requisición de Salida", 5));
+        m_navButtons.append(createNavButton("◎  Consultar Inventario", 6));
 
     } else {
         // --- VENDEDOR ---
@@ -299,7 +311,11 @@ void MainWindow::onNavButtonClicked(int index) {
             else if (index == 3 && m_jefeUsuarios) m_jefeUsuarios->cargarUsuarios();
         } else if (m_user.id_roles == 2) {
             if (index == 0 && m_bodegaDashboard) m_bodegaDashboard->refreshData();
-            else if (index == 3 && m_bodegaInventario) m_bodegaInventario->cargarInventario();
+            else if (index == 1 && m_bodegaRegistro) m_bodegaRegistro->cargarCatalogos();
+            else if (index == 2 && m_bodegaCompras) m_bodegaCompras->cargarProveedores();
+            else if (index == 3 && m_bodegaAutores) m_bodegaAutores->cargarAutores();
+            else if (index == 4 && m_bodegaProveedores) m_bodegaProveedores->cargarProveedores();
+            else if (index == 6 && m_bodegaInventario) m_bodegaInventario->cargarInventario();
         } else {
             if (index == 0 && m_vendedorDashboard) m_vendedorDashboard->refreshData();
             else if (index == 1 && m_vendedorConsulta) m_vendedorConsulta->buscarExistencias();
